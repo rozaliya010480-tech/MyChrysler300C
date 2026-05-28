@@ -1,3 +1,4 @@
+
 name: Build Android APK
 
 on:
@@ -8,22 +9,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Build fake APK
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unzip project
         run: |
-          mkdir apk
-          echo "My Chrysler 300C APK" > apk/app-debug.apk
+          unzip -o MyChrysler300C_FIXED_SOURCE.zip
+
+      - name: Enable AndroidX
+        run: |
+          cd MyChrysler300C_Android_Source
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+
+      - name: Build APK
+        run: |
+          cd MyChrysler300C_Android_Source
+          gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MyChrysler300C-debug-apk
-          path: apk/app-debug.apk
+          name: MyChrysler300C-real-apk
+          path: MyChrysler300C_Android_Source/app/build/outputs/apk/debug/app-debug.apk

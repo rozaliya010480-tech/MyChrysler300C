@@ -24,6 +24,12 @@ jobs:
           unzip -o MyChrysler300C_REAL_APK_FILES.zip
           unzip -o MyChrysler300C_Android_Source.zip
 
+      - name: Enable AndroidX
+        run: |
+          cd MyChrysler300C_Android_Source
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+
       - name: Build APK
         run: |
           cd MyChrysler300C_Android_Source

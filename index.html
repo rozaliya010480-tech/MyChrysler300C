@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#020617">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <title>Мой Chrysler 300C</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#e5e7eb; color:#0f172a; }
+    .app { max-width:720px; margin:0 auto; min-height:100vh; background:#f8fafc; }
+    header { background:linear-gradient(135deg,#020617,#1e293b); color:white; padding:22px 16px 18px; border-radius:0 0 28px 28px; position:sticky; top:0; z-index:3; box-shadow:0 8px 24px rgba(0,0,0,.22); }
+    h1 { margin:0; font-size:25px; }
+    .sub { margin-top:6px; color:#cbd5e1; font-size:14px; line-height:1.25; }
+    .wrap { padding:12px 12px 158px; }
+    .tabs { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:min(720px,100%); display:grid; grid-template-columns:repeat(4,1fr); gap:6px; background:rgba(248,250,252,.96); backdrop-filter:blur(10px); padding:8px 8px max(8px, env(safe-area-inset-bottom)); border-top:1px solid #e2e8f0; z-index:5; }
+    .tab { border:0; border-radius:16px; background:#e2e8f0; padding:10px 3px; font-size:11px; font-weight:900; color:#334155; }
+    .tab.active { background:#020617; color:white; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .stat, .card { background:white; border-radius:22px; box-shadow:0 6px 18px rgba(15,23,42,.08); border:1px solid #e2e8f0; }
+    .stat { padding:14px; min-height:86px; }
+    .label { color:#64748b; font-size:12px; font-weight:900; }
+    .value { margin-top:5px; font-size:22px; font-weight:900; }
+    .card { padding:15px; margin:11px 0; }
+    h2 { margin:0 0 12px; font-size:20px; }
+    h3 { margin:0 0 8px; font-size:16px; }
+    p { margin:6px 0; line-height:1.35; }
+    .muted { color:#64748b; font-size:13px; }
+    label { display:block; color:#475569; font-size:12px; font-weight:900; margin:10px 0 4px; }
+    input, textarea, select { width:100%; border:1px solid #cbd5e1; background:#f8fafc; color:#0f172a; border-radius:14px; padding:11px; font-size:16px; outline:none; }
+    textarea { min-height:76px; resize:vertical; }
+    .btn { border:0; border-radius:16px; padding:12px 14px; font-weight:900; font-size:15px; background:#2563eb; color:white; width:100%; margin-top:10px; }
+    .btn.green { background:#16a34a; }
+    .btn.red { background:#dc2626; }
+    .btn.dark { background:#020617; }
+    .btn.light { background:#e2e8f0; color:#0f172a; }
+    .pill { display:inline-block; padding:5px 9px; border-radius:99px; font-size:12px; font-weight:900; background:#e2e8f0; color:#334155; margin-right:5px; margin-top:5px; }
+    .pill.red { background:#fee2e2; color:#991b1b; }
+    .pill.green { background:#dcfce7; color:#166534; }
+    .pill.amber { background:#fef3c7; color:#92400e; }
+    .itemTop { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+    .smallBtn { border:0; border-radius:12px; padding:8px 10px; font-weight:900; background:#e2e8f0; color:#0f172a; white-space:nowrap; }
+    .hidden { display:none!important; }
+    .dangerText { color:#b91c1c; font-weight:900; }
+    .installBtn { display:none; border:0; border-radius:14px; padding:9px 12px; background:white; color:#020617; font-weight:900; }
+    .topline { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="topline">
+      <div>
+        <h1>Мой Chrysler 300C</h1>
+        <div class="sub">С800ТУ 22 · 2005 · 2.7 V6 · ГБО · Webasto · Свайпом переключаются разделы · APK с уведомлениями</div>
+      </div>
+      <button id="installBtn" class="installBtn">Установить</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="screen"></section>
+  </main>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="home">Главная</button>
+    <button class="tab" data-tab="service">ТО</button>
+    <button class="tab" data-tab="tasks">Задачи</button>
+    <button class="tab" data-tab="parts">Запчасти</button>
+    <button class="tab" data-tab="fuel">Топливо</button>
+    <button class="tab" data-tab="errors">Ошибки</button>
+    <button class="tab" data-tab="fluids">Жидкости</button>
+    <button class="tab" data-tab="alts">Аналоги</button>
+  </nav>
+</div>
+
+<script>
+const KEY = "my_chrysler_300c_pwa_v11";
+let tab = "home";
+let deferredPrompt = null;
+let touchStartX = 0;
+let touchStartY = 0;
+
+function id(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+function byId(x){ return document.getElementById(x); }
+function esc(v){ return String(v ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+function rub(n){ return (Number(n)||0).toLocaleString("ru-RU", {maximumFractionDigits:2}) + " ₽"; }
+function km(n){ return (Number(n)||0).toLocaleString("ru-RU") + " км"; }
+function todayRu(){ const d = new Date(); return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear(); }
+function dateToRu(v){
+  if(!v) return "";
+  const s = String(v);
+  if(/^\d{2}\.\d{2}\.\d{4}$/.test(s)) return s;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const [y,m,d] = s.split("-"); return `${d}.${m}.${y}`; }
+  return s;
+}
+function normalizeDateInput(input){
+  let v = input.value.replace(/[^\d]/g, "").slice(0,8);
+  if(v.length >= 5) v = v.slice(0,2)+"."+v.slice(2,4)+"."+v.slice(4);
+  else if(v.length >= 3) v = v.slice(0,2)+"."+v.slice(2);
+  input.value = v;
+}
+
+const defaults = {
+  car: {
+    brand:"Chrysler", model:"300C", year:"2005", plate:"С800ТУ 22", vin:"1C3H8B3R56Y115967",
+    engine:"2.7 V6", drive:"Задний привод", fuelType:"Бензин + ГБО", mileage:217293,
+    notes:"Белый Chrysler 300C. Установлены ГБО и Webasto."
+  },
+  service: [
+    {id:id(), date:"08.04.2026", mileage:217293, title:"Полная замена ГРМ", category:"Двигатель", note:"Следующую замену контролировать по регламенту.", cost:0},
+    {id:id(), date:"04.04.2026", mileage:217200, title:"Замена масла", category:"ТО", note:"ZIC 5W-40, доливка Лукойл 5W-40, Liqui Moly Hydro-Stossel-Additiv.", cost:0}
+  ],
+  tasks: [
+    {id:id(), title:"Следующая замена масла", dueMileage:227200, dueDate:"", note:"ZIC X9 5W-40, фильтр MANN W712/80. Проверить Rossko, Новосибирск, ул. Троллейная, 37.", done:false},
+    {id:id(), title:"Заменить тройник охлаждения", dueMileage:"", dueDate:"", note:"Патрубок подогрева масляного фильтра, артикул 04596509AB.", done:false},
+    {id:id(), title:"Проверить ГУР", dueMileage:"", dueDate:"", note:"Жидкость ГУР потемнела. Рекомендована замена.", done:false},
+    {id:id(), title:"Заменить распылители стеклоомывателя", dueMileage:"", dueDate:"", note:"Требуется замена распылителей стеклоомывателя.", done:false}
+  ],
+  parts: [
+    {id:id(), name:"Масляный фильтр MANN W712/80", status:"подходит", source:"Rossko, Новосибирск, ул. Троллейная, 37", note:"Альтернатива: AZUMI."},
+    {id:id(), name:"Клипса A-pillar DA784023AB / 04784023AB", status:"нужно 2 шт.", source:"", note:"Зажим внутренней панели A-стойки."},
+    {id:id(), name:"Тройник охлаждения 04596509AB", status:"нужно заменить", source:"", note:"Патрубок подогрева масляного фильтра."}
+  ],
+  fuel: [],
+  errorCodes: [
+    {code:"P0300", name:"Случайные/множественные пропуски зажигания", causes:"Свечи, катушки, провода, подсос воздуха, низкая компрессия, форсунки, плохое топливо.", fixes:"Проверить свечи и катушки, считать freeze frame, проверить подсос воздуха, давление топлива, компрессию."},
+    {code:"P0301", name:"Пропуск зажигания цилиндр 1", causes:"Свеча/катушка 1 цилиндра, форсунка, компрессия, подсос по впуску.", fixes:"Поменять местами катушку/свечу с другим цилиндром и посмотреть, уйдёт ли ошибка."},
+    {code:"P0302", name:"Пропуск зажигания цилиндр 2", causes:"Свеча/катушка 2 цилиндра, форсунка, компрессия.", fixes:"Диагностика свечи, катушки, форсунки, компрессии."},
+    {code:"P0303", name:"Пропуск зажигания цилиндр 3", causes:"Свеча/катушка 3 цилиндра, форсунка, компрессия.", fixes:"Диагностика свечи, катушки, форсунки, компрессии."},
+    {code:"P0304", name:"Пропуск зажигания цилиндр 4", causes:"Свеча/катушка 4 цилиндра, форсунка, компрессия.", fixes:"Диагностика свечи, катушки, форсунки, компрессии."},
+    {code:"P0305", name:"Пропуск зажигания цилиндр 5", causes:"Свеча/катушка 5 цилиндра, форсунка, компрессия.", fixes:"Диагностика свечи, катушки, форсунки, компрессии."},
+    {code:"P0306", name:"Пропуск зажигания цилиндр 6", causes:"Свеча/катушка 6 цилиндра, форсунка, компрессия.", fixes:"Диагностика свечи, катушки, форсунки, компрессии."},
+    {code:"P0171", name:"Бедная смесь, банк 1", causes:"Подсос воздуха, MAF/MAP, низкое давление топлива, негерметичность впуска, форсунки, лямбда-зонд.", fixes:"Проверить впуск дымогенератором, топливное давление, датчики, коррекции топлива."},
+    {code:"P0172", name:"Богатая смесь, банк 1", causes:"Форсунки переливают, MAF/MAP, давление топлива, лямбда-зонд, фильтр.", fixes:"Проверить коррекции, давление топлива, датчики, форсунки, воздушный фильтр."},
+    {code:"P0420", name:"Низкая эффективность катализатора, банк 1", causes:"Катализатор, задний кислородный датчик, утечка выхлопа, последствия пропусков.", fixes:"Сначала устранить пропуски и смесь, проверить графики лямбда-зондов и герметичность выхлопа."},
+    {code:"P0430", name:"Низкая эффективность катализатора, банк 2", causes:"Катализатор банка 2, задняя лямбда, утечка выхлопа, пропуски.", fixes:"Проверить лямбда-зонды, выхлоп, пропуски, смесь."},
+    {code:"P0440", name:"Система EVAP", causes:"Крышка бака, клапан продувки адсорбера, шланги EVAP, адсорбер.", fixes:"Проверить крышку бака, шланги, клапан продувки, герметичность EVAP."},
+    {code:"P0442", name:"Малая утечка EVAP", causes:"Крышка бака, микротрещина шлангов, клапан EVAP.", fixes:"Затянуть/заменить крышку бака, проверить EVAP дымом."},
+    {code:"P0455", name:"Большая утечка EVAP", causes:"Крышка бака снята/не держит, порванный шланг, клапан, адсорбер.", fixes:"Проверить крышку бака и магистрали EVAP."},
+    {code:"P0128", name:"Температура ОЖ ниже нормы / термостат", causes:"Термостат завис открыт, датчик температуры, низкий уровень ОЖ.", fixes:"Проверить прогрев по сканеру, уровень ОЖ, работу термостата."},
+    {code:"P0700", name:"Запрос MIL от блока АКПП", causes:"В АКПП есть отдельная ошибка. P0700 сам причину не раскрывает.", fixes:"Читать отдельные коды блока TCM нормальным сканером."},
+    {code:"P0730", name:"Неверное передаточное отношение АКПП", causes:"Пробуксовка, уровень/состояние ATF, соленоиды, гидроблок, износ.", fixes:"Проверить ATF по процедуре, считать коды TCM, проверить соленоиды/гидроблок."},
+    {code:"P0740", name:"Муфта блокировки гидротрансформатора", causes:"Соленоид TCC, проводка, гидроблок, ATF, гидротрансформатор.", fixes:"Проверить ATF, разъёмы, коды TCM, работу TCC по сканеру."},
+    {code:"P0340", name:"Датчик положения распредвала", causes:"Датчик CMP, проводка, питание, проблема синхронизации ГРМ.", fixes:"Проверить разъём, питание, сигнал датчика, состояние ГРМ/метки."},
+    {code:"P0335", name:"Датчик положения коленвала", causes:"Датчик CKP, проводка, разъём, сигнал.", fixes:"Проверить датчик коленвала, проводку, сигнал."}
+  ],
+  fluids: [
+    {system:"Двигатель", fluid:"Моторное масло", spec:"5W-30 по мануалу / у тебя используется 5W-40 ZIC X9", amount:"примерно 5.0–5.5 л с фильтром", where:"Заливная горловина двигателя, контроль по щупу", note:"Не переливать. Фильтр: MANN W712/80."},
+    {system:"АКПП", fluid:"ATF", spec:"Mopar ATF+4 или совместимая ATF+4", amount:"частичная замена около 4–5 л, полный сухой объём больше", where:"Через трубку щупа/заливное отверстие АКПП по процедуре", note:"Уровень проверяется по температуре ATF. Не лить Dexron вместо ATF+4."},
+    {system:"ГУР", fluid:"Жидкость гидроусилителя", spec:"Power Steering Fluid по допуску Chrysler/Mopar", amount:"до уровня в бачке", where:"Бачок ГУР", note:"У тебя жидкость ГУР потемнела — рекомендована замена."},
+    {system:"Система охлаждения", fluid:"Антифриз", spec:"HOAT/G-05 совместимый для Chrysler", amount:"ориентировочно 9–10 л полный объём", where:"Расширительный бачок/система охлаждения", note:"Заливать на холодном моторе. Проверить тройник 04596509AB."},
+    {system:"Тормоза", fluid:"Тормозная жидкость", spec:"DOT 3 / DOT 4", amount:"до MAX, при полной замене около 1 л", where:"Бачок главного тормозного цилиндра", note:"Не допускать попадания на краску."},
+    {system:"Задний редуктор", fluid:"Трансмиссионное масло", spec:"75W-90 GL-5", amount:"до нижней кромки заливного отверстия", where:"Заливная пробка редуктора", note:"Для LSD может требоваться модификатор трения."},
+    {system:"Омыватель", fluid:"Жидкость стеклоомывателя", spec:"по сезону", amount:"до заполнения бачка", where:"Бачок омывателя", note:"Требуется замена распылителей."}
+  ],
+  fluidAlternatives: [
+    {category:"Моторное масло", original:"Mopar 5W-30", alternatives:"ZIC X9 5W-40, Mobil 1 FS 5W-40, Shell Helix Ultra 5W-40, Liqui Moly Top Tec 4100 5W-40, Lukoil Genesis Armortech 5W-40", specs:"API SN/SM и выше, ACEA A3/B4", note:"Для изношенного 2.7 V6 часто используют качественное 5W-40 вместо 5W-30."},
+    {category:"АКПП", original:"Mopar ATF+4", alternatives:"Ravenol ATF+4, Febi ATF+4, Valvoline ATF+4, Petro-Canada ATF+4", specs:"Обязательно ATF+4", note:"Dexron использовать нельзя."},
+    {category:"ГУР", original:"Mopar Power Steering Fluid", alternatives:"Ravenol PSF, Febi PSF, аналоги PSF по Chrysler", specs:"PSF совместимый с Chrysler", note:"Не смешивать разные типы без проверки."},
+    {category:"Антифриз", original:"Mopar HOAT / G-05", alternatives:"Zerex G-05, Coolstream Premium, Febi G05", specs:"HOAT / G-05", note:"Не мешать с обычным зелёным антифризом без промывки."},
+    {category:"Тормозная жидкость", original:"Mopar DOT 3 / DOT 4", alternatives:"ATE DOT 4, Brembo DOT 4, TRW DOT 4, Bosch DOT 4", specs:"DOT 4", note:"Менять примерно раз в 2 года."},
+    {category:"Редуктор", original:"Mopar Gear Oil 75W-90", alternatives:"Motul Gear 300 75W-90, Liqui Moly 75W-90 GL-5, Castrol Syntrax 75W-90", specs:"GL-5 75W-90", note:"Для LSD может требоваться friction modifier."}
+  ]
+};
+
+let data = load();
+
+function load(){
+  try {
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return structuredClone(defaults);
+    const parsed = JSON.parse(raw);
+    return Object.assign(structuredClone(defaults), parsed);
+  } catch(e) {
+    return structuredClone(defaults);
+  }
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(data)); render(); }
+
+function switchToTab(nextTab){
+  tab = nextTab;
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  render();
+}
+
+document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => switchToTab(btn.dataset.tab)));
+
+function render(){
+  try {
+    if(tab==="home") renderHome();
+    if(tab==="service") renderService();
+    if(tab==="tasks") renderTasks();
+    if(tab==="parts") renderParts();
+    if(tab==="fuel") renderFuel();
+    if(tab==="errors") renderErrors();
+    if(tab==="fluids") renderFluids();
+    if(tab==="alts") renderAlternatives();
+  } catch(e) {
+    byId("screen").innerHTML = `<div class="card"><h2>Ошибка отображения</h2><p>${esc(e.message)}</p><button class="btn red" onclick="localStorage.removeItem(KEY); location.reload()">Сбросить данные и перезапустить</button></div>`;
+  }
+}
+
+function renderHome(){
+  const activeTasks = data.tasks.filter(t => !t.done);
+  const totalService = data.service.reduce((s,x)=>s+(Number(x.cost)||0),0);
+  const totalFuel = data.fuel.reduce((s,x)=>s+(Number(x.cost)||0),0);
+  const nearestOil = data.tasks.find(t => t.title.toLowerCase().includes("масл") && !t.done);
+  const oilLeft = nearestOil && nearestOil.dueMileage ? Number(nearestOil.dueMileage) - Number(data.car.mileage) : null;
+
+  byId("screen").innerHTML = `
+    <div class="grid">
+      <div class="stat"><div class="label">Пробег</div><div class="value">${km(data.car.mileage)}</div></div>
+      <div class="stat"><div class="label">Активные задачи</div><div class="value">${activeTasks.length}</div></div>
+      <div class="stat"><div class="label">Расходы ТО</div><div class="value">${rub(totalService)}</div></div>
+      <div class="stat"><div class="label">Топливо</div><div class="value">${rub(totalFuel)}</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Карточка авто</h2>
+      <p><b>${esc(data.car.brand)} ${esc(data.car.model)}</b>, ${esc(data.car.year)}</p>
+      <p>Госномер: <b>${esc(data.car.plate)}</b></p>
+      <p>VIN: <b>${esc(data.car.vin)}</b></p>
+      <p>Двигатель: <b>${esc(data.car.engine)}</b></p>
+      <p>Топливо: <b>${esc(data.car.fuelType)}</b></p>
+      <label>Текущий пробег</label>
+      <input type="number" id="mileageInput" value="${esc(data.car.mileage)}">
+      <button class="btn green" onclick="data.car.mileage=Number(byId('mileageInput').value)||0; save()">Сохранить пробег</button>
+    </div>
+
+    ${oilLeft !== null ? `<div class="card"><h2>Контроль масла</h2><p>Следующий контроль: <b>${km(nearestOil.dueMileage)}</b></p><p class="${oilLeft <= 1000 ? "dangerText" : ""}">Осталось: <b>${oilLeft.toLocaleString("ru-RU")} км</b></p></div>` : ""}
+
+    <div class="card">
+      <h2>Ближайшие задачи</h2>
+      ${activeTasks.slice(0,5).map(t => `<p>• <b>${esc(t.title)}</b><br><span class="muted">${esc(t.dueMileage || t.dueDate || "без срока")}</span></p>`).join("") || `<p class="muted">Активных задач нет.</p>`}
+    </div>
+
+    <div class="card">
+      <h2>Резервная копия</h2>
+      <p class="muted">Сохрани файл с данными автомобиля. Потом его можно импортировать обратно.</p>
+      <button class="btn dark" onclick="testAndroidNotification()">Проверить уведомление</button>
+      <button class="btn dark" onclick="exportBackup()">Экспорт резервной копии</button>
+      <button class="btn green" onclick="byId('backupFile').click()">Импорт резервной копии</button>
+      <input id="backupFile" type="file" accept="application/json,.json" class="hidden" onchange="importBackup(event)">
+      <button class="btn red" onclick="resetAppData()">Сбросить данные приложения</button>
+    </div>
+  `;
+}
+
+function renderService(){
+  byId("screen").innerHTML = `<button class="btn green" onclick="addService()">+ Добавить ТО / ремонт</button>` +
+  data.service.map((x,i)=>`
+    <div class="card">
+      <div class="itemTop">
+        <div><h3>${esc(x.title || "Без названия")}</h3>
+        <span class="pill">${esc(x.category || "ТО")}</span>
+        <span class="pill">${esc(dateToRu(x.date) || "без даты")}</span>
+        <span class="pill">${x.mileage ? km(x.mileage) : "без пробега"}</span></div>
+        <button class="smallBtn" onclick="toggleEdit('svc${i}')">✎</button>
+      </div>
+      <p>${esc(x.note || "")}</p><p><b>Стоимость:</b> ${rub(x.cost)}</p>
+      <div id="svc${i}" class="hidden">${recordInputs("service", i)}</div>
+    </div>`).join("");
+}
+
+function renderTasks(){
+  byId("screen").innerHTML = `<button class="btn green" onclick="addTask()">+ Добавить задачу</button>` +
+  data.tasks.map((x,i)=>{
+    const left = x.dueMileage ? Number(x.dueMileage) - Number(data.car.mileage) : null;
+    return `<div class="card">
+      <div class="itemTop"><div><h3>${esc(x.title || "Без названия")}</h3>
+      <span class="pill ${x.done ? "green" : "amber"}">${x.done ? "выполнено" : "активно"}</span>
+      ${x.dueMileage ? `<span class="pill ${left <= 1000 && !x.done ? "red" : ""}">осталось ${left.toLocaleString("ru-RU")} км</span>` : ""}</div>
+      <button class="smallBtn" onclick="toggleEdit('task${i}')">✎</button></div>
+      <p>${esc(x.note || "")}</p>
+      <button class="btn ${x.done ? "light" : "green"}" onclick="data.tasks[${i}].done=!data.tasks[${i}].done; save()">${x.done ? "Вернуть в активные" : "Отметить выполнено"}</button>
+      <div id="task${i}" class="hidden">${taskInputs(i)}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderParts(){
+  byId("screen").innerHTML = `<button class="btn green" onclick="addPart()">+ Добавить запчасть</button>` +
+  data.parts.map((x,i)=>`
+    <div class="card">
+      <div class="itemTop"><div><h3>${esc(x.name || "Без названия")}</h3><span class="pill">${esc(x.status || "без статуса")}</span></div>
+      <button class="smallBtn" onclick="toggleEdit('part${i}')">✎</button></div>
+      <p><b>Где купить:</b> ${esc(x.source || "не указано")}</p><p>${esc(x.note || "")}</p>
+      <div id="part${i}" class="hidden">${partInputs(i)}</div>
+    </div>`).join("");
+}
+
+function renderFuel(){
+  const petrol = data.fuel.filter(x => x.type === "Бензин");
+  const gas = data.fuel.filter(x => x.type === "Газ");
+  const petrolLiters = petrol.reduce((s,x)=>s+(Number(x.liters)||0),0);
+  const gasLiters = gas.reduce((s,x)=>s+(Number(x.liters)||0),0);
+  const petrolCost = petrol.reduce((s,x)=>s+(Number(x.cost)||0),0);
+  const gasCost = gas.reduce((s,x)=>s+(Number(x.cost)||0),0);
+  const totalKm = data.fuel.reduce((s,x)=>s+(Number(x.kmDriven)||0),0);
+
+  byId("screen").innerHTML = `
+    <div class="grid">
+      <div class="stat"><div class="label">Бензин</div><div class="value">${petrolLiters.toLocaleString("ru-RU")} л</div><div class="muted">${rub(petrolCost)}</div></div>
+      <div class="stat"><div class="label">Газ</div><div class="value">${gasLiters.toLocaleString("ru-RU")} л</div><div class="muted">${rub(gasCost)}</div></div>
+      <div class="stat"><div class="label">Всего топливо</div><div class="value">${rub(petrolCost + gasCost)}</div></div>
+      <div class="stat"><div class="label">Проехал учтено</div><div class="value">${totalKm.toLocaleString("ru-RU")} км</div></div>
+    </div>
+    <button class="btn green" onclick="addFuelType('Бензин')">+ Заправка бензином</button>
+    <button class="btn dark" onclick="addFuelType('Газ')">+ Заправка газом</button>
+    ${data.fuel.map((x,i)=>`
+      <div class="card">
+        <div class="itemTop"><div><h3>${esc(x.type || "Заправка")}</h3>
+        <span class="pill">${esc(dateToRu(x.date) || "без даты")}</span>
+        <span class="pill">${esc(x.liters || 0)} л</span><span class="pill">${rub(x.cost)}</span></div>
+        <button class="smallBtn" onclick="toggleEdit('fuel${i}')">✎</button></div>
+        <p><b>Пробег при заправке:</b> ${x.mileage ? km(x.mileage) : "не указан"}</p>
+        <p><b>Проехал после прошлой заправки:</b> ${x.kmDriven ? Number(x.kmDriven).toLocaleString("ru-RU") + " км" : "не указано"}</p>
+        <p><b>Цена за литр:</b> ${x.liters && x.cost ? rub(Number(x.cost)/Number(x.liters)) : "не указано"}</p>
+        <p>${esc(x.note || "")}</p>
+        <div id="fuel${i}" class="hidden">${fuelInputs(i)}</div>
+      </div>`).join("") || `<div class="card"><p class="muted">Заправок пока нет.</p></div>`}
+  `;
+}
+
+function renderErrors(){
+  byId("screen").innerHTML = `
+    <div class="card"><h2>Расшифровка ошибок OBD2</h2><p class="muted">Введи код, например P0300, P0420, P0700.</p>
+    <label>Поиск</label><input id="errorSearch" placeholder="Например: P0300, пропуски, катализатор" oninput="filterErrors()"></div>
+    <div id="errorsList"></div>`;
+  filterErrors();
+}
+function filterErrors(){
+  const q = (byId("errorSearch")?.value || "").toLowerCase().trim();
+  const list = data.errorCodes.filter(e => !q || e.code.toLowerCase().includes(q) || e.name.toLowerCase().includes(q) || e.causes.toLowerCase().includes(q) || e.fixes.toLowerCase().includes(q));
+  byId("errorsList").innerHTML = list.map(e => `<div class="card"><h3>${esc(e.code)} — ${esc(e.name)}</h3><p><b>Возможные причины:</b><br>${esc(e.causes)}</p><p><b>Что делать:</b><br>${esc(e.fixes)}</p></div>`).join("") || `<div class="card"><p class="muted">Ничего не найдено.</p></div>`;
+}
+
+function renderFluids(){
+  byId("screen").innerHTML = `<div class="card"><h2>Жидкости и масла</h2><p class="muted">Объёмы ориентировочные. Финальный уровень проверять по щупу, меткам или сервисной процедуре.</p><label>Поиск</label><input id="fluidSearch" placeholder="Например: масло, АКПП, ГУР" oninput="filterFluids()"></div><div id="fluidsList"></div>`;
+  filterFluids();
+}
+function filterFluids(){
+  const q = (byId("fluidSearch")?.value || "").toLowerCase().trim();
+  const list = data.fluids.filter(f => !q || f.system.toLowerCase().includes(q) || f.fluid.toLowerCase().includes(q) || f.spec.toLowerCase().includes(q) || f.note.toLowerCase().includes(q));
+  byId("fluidsList").innerHTML = list.map(f => `<div class="card"><h3>${esc(f.system)}</h3><p><b>Что заливать:</b> ${esc(f.fluid)}</p><p><b>Спецификация:</b> ${esc(f.spec)}</p><p><b>Сколько:</b> ${esc(f.amount)}</p><p><b>Куда:</b> ${esc(f.where)}</p><p><b>Важно:</b> ${esc(f.note)}</p></div>`).join("") || `<div class="card"><p class="muted">Ничего не найдено.</p></div>`;
+}
+
+function renderAlternatives(){
+  byId("screen").innerHTML = `<div class="card"><h2>Аналоги масел и жидкостей</h2><p class="muted">Подбор альтернатив с совместимыми допусками.</p><label>Поиск</label><input id="altSearch" placeholder="Например: ATF+4, антифриз, 5W-40" oninput="filterAlternatives()"></div><div id="altsList"></div>`;
+  filterAlternatives();
+}
+function filterAlternatives(){
+  const q = (byId("altSearch")?.value || "").toLowerCase().trim();
+  const list = data.fluidAlternatives.filter(a => !q || a.category.toLowerCase().includes(q) || a.original.toLowerCase().includes(q) || a.alternatives.toLowerCase().includes(q) || a.specs.toLowerCase().includes(q));
+  byId("altsList").innerHTML = list.map(a => `<div class="card"><h3>${esc(a.category)}</h3><p><b>Оригинал:</b><br>${esc(a.original)}</p><p><b>Аналоги:</b><br>${esc(a.alternatives)}</p><p><b>Допуски:</b><br>${esc(a.specs)}</p><p><b>Важно:</b><br>${esc(a.note)}</p></div>`).join("") || `<div class="card"><p class="muted">Ничего не найдено.</p></div>`;
+}
+
+function recordInputs(list,i){
+  const x = data[list][i];
+  return `<label>Название</label><input id="${list}_title_${i}" value="${esc(x.title)}">
+  <label>Дата, дд.мм.гггг</label><input type="text" inputmode="numeric" placeholder="дд.мм.гггг" oninput="normalizeDateInput(this)" id="${list}_date_${i}" value="${esc(dateToRu(x.date))}">
+  <label>Пробег</label><input type="number" id="${list}_mileage_${i}" value="${esc(x.mileage)}">
+  <label>Категория</label><input id="${list}_category_${i}" value="${esc(x.category || "")}">
+  <label>Заметка</label><textarea id="${list}_note_${i}">${esc(x.note)}</textarea>
+  <label>Стоимость</label><input type="number" id="${list}_cost_${i}" value="${esc(x.cost)}">
+  <button class="btn dark" onclick="saveRecord('${list}',${i})">Сохранить</button>
+  <button class="btn red" onclick="data.${list}.splice(${i},1); save()">Удалить</button>`;
+}
+function taskInputs(i){
+  const x = data.tasks[i];
+  return `<label>Задача</label><input id="task_title_${i}" value="${esc(x.title)}">
+  <label>Пробег-срок</label><input type="number" id="task_dueMileage_${i}" value="${esc(x.dueMileage)}">
+  <label>Дата-срок, дд.мм.гггг</label><input type="text" inputmode="numeric" placeholder="дд.мм.гггг" oninput="normalizeDateInput(this)" id="task_dueDate_${i}" value="${esc(dateToRu(x.dueDate))}">
+  <label>Заметка</label><textarea id="task_note_${i}">${esc(x.note)}</textarea>
+  <button class="btn dark" onclick="saveTask(${i})">Сохранить</button><button class="btn red" onclick="data.tasks.splice(${i},1); save()">Удалить</button>`;
+}
+function partInputs(i){
+  const x = data.parts[i];
+  return `<label>Название / артикул</label><input id="part_name_${i}" value="${esc(x.name)}">
+  <label>Статус</label><input id="part_status_${i}" value="${esc(x.status)}">
+  <label>Где купить</label><input id="part_source_${i}" value="${esc(x.source)}">
+  <label>Заметка</label><textarea id="part_note_${i}">${esc(x.note)}</textarea>
+  <button class="btn dark" onclick="savePart(${i})">Сохранить</button><button class="btn red" onclick="data.parts.splice(${i},1); save()">Удалить</button>`;
+}
+function fuelInputs(i){
+  const x = data.fuel[i];
+  return `<label>Тип топлива</label><select id="fuel_type_${i}"><option ${x.type==="Бензин"?"selected":""}>Бензин</option><option ${x.type==="Газ"?"selected":""}>Газ</option></select>
+  <label>Дата, дд.мм.гггг</label><input type="text" inputmode="numeric" placeholder="дд.мм.гггг" oninput="normalizeDateInput(this)" id="fuel_date_${i}" value="${esc(dateToRu(x.date))}">
+  <label>Пробег при заправке</label><input type="number" id="fuel_mileage_${i}" value="${esc(x.mileage)}">
+  <label>Сколько проехал км после прошлой заправки</label><input type="number" id="fuel_kmDriven_${i}" value="${esc(x.kmDriven || "")}">
+  <label>Сколько залил, литры</label><input type="number" step="0.01" id="fuel_liters_${i}" value="${esc(x.liters)}">
+  <label>Стоимость заправки, ₽</label><input type="number" id="fuel_cost_${i}" value="${esc(x.cost)}">
+  <label>Заметка</label><textarea id="fuel_note_${i}">${esc(x.note)}</textarea>
+  <button class="btn dark" onclick="saveFuel(${i})">Сохранить</button><button class="btn red" onclick="data.fuel.splice(${i},1); save()">Удалить</button>`;
+}
+
+function toggleEdit(id){ byId(id).classList.toggle("hidden"); }
+function addService(){ data.service.unshift({id:id(),date:todayRu(),mileage:data.car.mileage,title:"",category:"ТО",note:"",cost:0}); save(); }
+function addTask(){ data.tasks.unshift({id:id(),title:"",dueMileage:"",dueDate:"",note:"",done:false}); save(); }
+function addPart(){ data.parts.unshift({id:id(),name:"",status:"",source:"",note:""}); save(); }
+function addFuelType(type){ data.fuel.unshift({id:id(),type:type,date:todayRu(),mileage:data.car.mileage,liters:"",cost:"",kmDriven:"",note:""}); save(); }
+
+function saveRecord(list,i){
+  const x = data[list][i];
+  x.title = byId(`${list}_title_${i}`).value;
+  x.date = byId(`${list}_date_${i}`).value;
+  x.mileage = Number(byId(`${list}_mileage_${i}`).value)||"";
+  x.category = byId(`${list}_category_${i}`).value;
+  x.note = byId(`${list}_note_${i}`).value;
+  x.cost = Number(byId(`${list}_cost_${i}`).value)||0;
+  save();
+}
+function saveTask(i){
+  const x = data.tasks[i];
+  x.title = byId(`task_title_${i}`).value;
+  x.dueMileage = Number(byId(`task_dueMileage_${i}`).value)||"";
+  x.dueDate = byId(`task_dueDate_${i}`).value;
+  x.note = byId(`task_note_${i}`).value;
+  save();
+}
+function savePart(i){
+  const x = data.parts[i];
+  x.name = byId(`part_name_${i}`).value;
+  x.status = byId(`part_status_${i}`).value;
+  x.source = byId(`part_source_${i}`).value;
+  x.note = byId(`part_note_${i}`).value;
+  save();
+}
+function saveFuel(i){
+  const x = data.fuel[i];
+  x.type = byId(`fuel_type_${i}`).value;
+  x.date = byId(`fuel_date_${i}`).value;
+  x.mileage = Number(byId(`fuel_mileage_${i}`).value)||"";
+  x.kmDriven = Number(byId(`fuel_kmDriven_${i}`).value)||"";
+  x.liters = Number(byId(`fuel_liters_${i}`).value)||0;
+  x.cost = Number(byId(`fuel_cost_${i}`).value)||0;
+  x.note = byId(`fuel_note_${i}`).value;
+  save();
+}
+
+
+
+function testAndroidNotification(){
+  const title = "Контроль Chrysler 300C";
+  const message = "Уведомления работают. Проверь пробег, ТО, жидкости и задачи по автомобилю.";
+  if(window.AndroidBridge && window.AndroidBridge.showCarNotification){
+    window.AndroidBridge.showCarNotification(title, message);
+    alert("Проверочное уведомление отправлено.");
+  } else {
+    alert("Уведомления доступны только в APK-версии приложения.");
+  }
+}
+
+function exportBackup(){
+  const backup = {
+    app: "my_chrysler_300c",
+    version: "v10",
+    exportedAt: new Date().toLocaleString("ru-RU"),
+    data: data
+  };
+
+  const text = JSON.stringify(backup, null, 2);
+  const blob = new Blob([text], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = "chrysler_300c_backup_" + stamp + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+function importBackup(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(){
+    try {
+      const parsed = JSON.parse(reader.result);
+      const incoming = parsed.data ? parsed.data : parsed;
+
+      if(!incoming.car || !incoming.service || !incoming.tasks || !incoming.parts){
+        alert("Файл не похож на резервную копию приложения Chrysler 300C.");
+        return;
+      }
+
+      if(!confirm("Импортировать резервную копию? Текущие данные будут заменены.")){
+        return;
+      }
+
+      data = Object.assign(structuredClone(defaults), incoming);
+      localStorage.setItem(KEY, JSON.stringify(data));
+      alert("Резервная копия восстановлена.");
+      render();
+
+    } catch(e) {
+      alert("Не удалось прочитать файл резервной копии.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  reader.readAsText(file, "utf-8");
+}
+
+function resetAppData(){
+  if(confirm("Точно сбросить все данные приложения? Перед сбросом лучше сделать экспорт резервной копии.")){
+    localStorage.removeItem(KEY);
+    data = structuredClone(defaults);
+    render();
+  }
+}
+
+const tabOrder = ["home","service","tasks","parts","fuel","errors","fluids","alts"];
+function enableSwipe(){
+  const zone = document.querySelector(".app") || document.body;
+  zone.addEventListener("touchstart", e => { const t=e.changedTouches[0]; touchStartX=t.clientX; touchStartY=t.clientY; }, {passive:true});
+  zone.addEventListener("touchend", e => {
+    const t=e.changedTouches[0];
+    const dx=t.clientX-touchStartX, dy=t.clientY-touchStartY;
+    if(Math.abs(dx)<70 || Math.abs(dx)<Math.abs(dy)*1.25) return;
+    const idx = tabOrder.indexOf(tab);
+    if(dx<0 && idx<tabOrder.length-1) switchToTab(tabOrder[idx+1]);
+    if(dx>0 && idx>0) switchToTab(tabOrder[idx-1]);
+  }, {passive:true});
+}
+
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  byId("installBtn").style.display = "block";
+});
+byId("installBtn").addEventListener("click", async () => {
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  byId("installBtn").style.display = "none";
+});
+
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("./sw.js").catch(()=>{}); }
+
+enableSwipe();
+render();
+</script>
+</body>
+</html>

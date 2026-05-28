@@ -32,8 +32,7 @@ jobs:
       - name: Build APK
         run: |
           cd MyChrysler300C_Android_Source
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
